@@ -1,0 +1,8 @@
+# Ignore everything
+*
+
+# But not these files...
+!trabalho.asm
+!readme.md
+!.gitignore
+
