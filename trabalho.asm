@@ -1,7 +1,3 @@
-; vers�o de 10/05/2007
-; corrigido erro de arredondamento na rotina line.
-; circle e full_circle disponibilizados por Jefferson Moro em 10/2009
-;
 segment code
 ..start:
         mov ax,data
@@ -60,31 +56,53 @@ inicializa_jogo:
 		mov    	dh, 2			;linha 0-29
 		call 	escreve_colunas
 
-jogo:
+jogo:	
+		mov		bx, 0
 		mov    	dh, 27			;comando
 		mov     dl, 6			;coluna 0-79
-		mov 	ah,0bh
-		int 	21h ; Le buffer de teclado
-		cmp 	al,0 ; Se AL =0 nada foi digitado. Se AL =255 então há algum caracter na STDIN
-		jne 	continua
-		
+
 	continua:
-		mov 	ah, 08H ;Ler caracter da STDIN
+		mov 	ah, 07H ;Ler caracter da STDIN
 		int 	21H
 		cmp 	al, 0x0d ;Verifica se foi 'enter'
 		je 		enterL
+		cmp 	al, 0x08 ;Verifica se foi 'backspace'
+		je 		backspace
 	
 	escreve:
+		mov 	[buffer + bx], al
 		call	cursor
 		call	caracter
-		inc 	dl
+		inc		bx
+		inc 	dl			;deixa o cursor na proxima coluna
 		jmp 	continua
 	
 	enterL:
-		; o que fazer aqui?
+		cmp 	byte [buffer], 0x00
+		je 		continua
+		cmp 	byte [buffer], 'X'
+		je		jogaX
+		cmp 	byte [buffer], 'O'
+		je		jogaO
+		cmp 	byte [buffer], 's'
+		je		sai
+		jmp 	continua
 
-		cmp 	al, 's' ;Verifica se foi 's'. Se foi, finaliza o programa
-		je 		sai
+	backspace:
+		cmp 	bx, 0
+		je 		continua
+		dec 	dl
+		call	cursor
+		mov		al, 0x00
+		call	caracter
+		dec		bx
+		mov		[buffer + bx], al
+		jmp 	continua
+	
+	jogaX:
+
+	jogaO:
+
 
 sai:
 	mov ah,0 ; set video mode
