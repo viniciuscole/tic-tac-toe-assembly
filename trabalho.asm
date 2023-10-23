@@ -16,7 +16,7 @@ segment code
 
 inicializa_jogo:
 	campos_escrita:
-		mov		byte[cor], branco
+		mov	byte[cor], branco
 
 		; PARA SABER QUAL A POSIÇÃO DO TEXTO DOS CAMPOS
 		; mov    	dh, 27			;linha 0-29
@@ -32,85 +32,215 @@ inicializa_jogo:
 		; call	caracter
 
 		;comandos
-		mov		bx, 40			
-		mov		cx, 24			
-		mov		dx, 600			
-		mov		si, 56
-		call	desenha_retangulo		
+		mov	bx, 40			
+		mov	cx, 24			
+		mov	dx, 600			
+		mov	si, 56
+		call desenha_retangulo		
 
 		;erros
-		mov		bx, 40			
-		mov		cx, 72			
-		mov		dx, 600			
-		mov		si, 104
-		call	desenha_retangulo		
+		mov	bx, 40			
+		mov	cx, 72			
+		mov	dx, 600			
+		mov	si, 104
+		call desenha_retangulo		
 		
 
 	jogo_da_velha:
-		call	escreve_horizontais
-		call	escreve_verticais
+		call escreve_horizontais
+		call escreve_verticais
 
 	escrita_posicoes:
-		mov		cx, 3
-		mov		bx, 0
-		mov    	dh, 2			;linha 0-29
-		call 	escreve_colunas
+		mov	cx, 3
+		mov	bx, 0
+		mov dh, 2			
+		call escreve_colunas
 
 jogo:	
-		mov		bx, 0
-		mov    	dh, 27			;comando
-		mov     dl, 6			;coluna 0-79
+		mov	bx, 0
+		mov dh, 24			
+		mov dl, 6			
 
 	continua:
-		mov 	ah, 07H ;Ler caracter da STDIN
-		int 	21H
-		cmp 	al, 0x0d ;Verifica se foi 'enter'
-		je 		enterL
-		cmp 	al, 0x08 ;Verifica se foi 'backspace'
-		je 		backspace
+		mov ah, 07H ;Ler caracter da STDIN
+		int 21H
+		cmp al, 0x0d ;Verifica se foi 'enter'
+		je 	enterL
+		cmp al, 0x08 ;Verifica se foi 'backspace'
+		je 	backspace
 	
 	escreve:
-		mov 	[buffer + bx], al
-		call	cursor
-		call	caracter
-		inc		bx
-		inc 	dl			;deixa o cursor na proxima coluna
-		jmp 	continua
+		cmp bx, 68
+		je 	continua
+		mov [buffer + bx], al
+		call cursor
+		call caracter
+		inc	bx
+		inc dl			;deixa o cursor na proxima coluna
+		jmp continua
 	
 	enterL:
-		cmp 	byte [buffer], 0x00
-		je 		continua
-		cmp 	byte [buffer], 'X'
-		je		jogaX
-		cmp 	byte [buffer], 'O'
-		je		jogaO
-		cmp 	byte [buffer], 's'
-		je		sai
-		jmp 	continua
+		cmp byte [buffer], 0x00
+		je	continua
+		cmp byte [buffer], 'X'
+		je X
+		cmp byte [buffer], 'C'
+		je	C
+		cmp byte [buffer], 's'
+		je sai1
+		jmp comandoInvalido
 
 	backspace:
-		cmp 	bx, 0
-		je 		continua
-		dec 	dl
-		call	cursor
-		mov		al, 0x00
-		call	caracter
-		dec		bx
-		mov		[buffer + bx], al
-		jmp 	continua
+		cmp bx, 0
+		je continua
+		dec dl
+		call cursor
+		mov	al, 0x00
+		call caracter
+		dec	bx
+		mov	[buffer + bx], al
+		jmp continua
+
 	
-	jogaX:
-
-	jogaO:
-
-
 sai:
 	mov ah,0 ; set video mode
 	mov al,[modo_anterior] ; recupera o modo anterior
 	int 10h
 	mov ax,4c00h
 	int 21h
+	
+sai1:
+	cmp byte [buffer + 1], 0x00
+	je	sai
+	jmp comandoInvalido
 
+X:
+	cmp byte [buffer + 1], '1'
+	je  X2
+	cmp byte [buffer + 1], '2'
+	je  X2
+	cmp byte [buffer + 1], '3'
+	je  X2
+	jmp jogadaInvalida
+C:
+	cmp byte [buffer + 1], '1'
+	je  C2
+	cmp byte [buffer + 1], '2'
+	je  C2
+	cmp byte [buffer + 1], '3'
+	je  C2
+	jmp jogadaInvalida
+
+X2:
+	cmp byte [buffer + 2], '1'
+	je	X3
+	cmp byte [buffer + 2], '2'
+	je	X3
+	cmp byte [buffer + 2], '3'
+	je	X3
+	jmp jogadaInvalida
+
+C2:
+	cmp byte [buffer + 2], '1'
+	je  C3
+	cmp byte [buffer + 2], '2'
+	je  C3
+	cmp byte [buffer + 2], '3'
+	je  C3
+	jmp jogadaInvalida
+
+X3:
+	cmp byte [buffer + 3], 0x00
+	je	jogaX
+	jmp jogadaInvalida
+
+C3:
+	cmp byte [buffer + 3], 0x00
+	je	jogaO
+	jmp jogadaInvalida
+
+jogaX:
+	call limpaBuffer
+	call limpaConsole
+	jmp jogo
+jogaO:
+	call limpaBuffer
+	call limpaConsole
+	jmp jogo
+
+comandoInvalido:
+	push bx
+	push dx
+	call limpaConsole
+	mov cx, 16			;n�mero de caracteres
+	mov bx, 0
+	mov dh, 27			;linha 0-29
+	mov dl, 6			;coluna 0-79
+	msg1:
+		call cursor
+		mov al,[bx+erro1]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop msg1
+	pop	dx
+	pop	bx
+	call limpaBuffer
+	jmp jogo
+
+jogadaInvalida:
+	push bx
+	push dx
+	call limpaConsole
+	mov cx, 15			;n�mero de caracteres
+	mov bx, 0
+	mov dh, 27			;linha 0-29
+	mov dl, 6			;coluna 0-79
+	msg2:
+		call cursor
+		mov al,[bx+erro2]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop msg2
+	pop	dx
+	pop	bx
+	call limpaBuffer
+	jmp jogo
+
+limpaBuffer:
+	apaga:
+		cmp bx, 0
+		je 	retorna
+		dec dl
+		call cursor
+		mov	al, 0x00
+		call caracter
+		mov [buffer + bx], al
+		dec bx
+		jmp apaga
+	retorna:
+		ret
+
+limpaConsole:
+	push bx
+	push dx
+	mov	dh, 27
+	mov	dl, 46
+	mov cx, 40
+	apaga2:
+		cmp cx, 0
+		je 	retorna2
+		dec dl
+		call cursor
+		mov	al, 0x00
+		call caracter
+		dec cx
+		jmp apaga2
+	retorna2:
+		pop	dx
+		pop	bx
+		ret
 
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
@@ -776,6 +906,8 @@ coluna  		dw  	0
 deltax			dw		0
 deltay			dw		0	
 mens    		db  	'111213212223313233'
+erro1			db		'Comando Invalido'
+erro2			db		'Jogada Invalida'
 buffer      	resb	80  		
 segment stack stack
     		resb 		512
