@@ -80,7 +80,7 @@ jogo:
 		jmp continua
 	
 	enterL:
-		cmp byte [buffer], 0x00
+		cmp bx, 0
 		je	continua
 		cmp byte [buffer], 'X'
 		je X
@@ -150,12 +150,12 @@ C2:
 	jmp jogadaInvalida
 
 X3:
-	cmp byte [buffer + 3], 0x00
+	cmp bx, 3
 	je	jogaX
 	jmp jogadaInvalida
 
 C3:
-	cmp byte [buffer + 3], 0x00
+	cmp bx, 3
 	je	jogaO
 	jmp jogadaInvalida
 
@@ -164,6 +164,7 @@ jogaX:
 	call limpaConsole
 	jmp jogo
 jogaO:
+	call desenha_o
 	call limpaBuffer
 	call limpaConsole
 	jmp jogo
@@ -245,6 +246,50 @@ limpaConsole:
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
+
+;ax = linha, bx = coluna
+desenha_o:
+	push ax
+	push bx
+
+	mov ax, [buffer + 2]	;coluna
+	sub ax, 48				;converte para num
+	dec ax
+	xor ah, ah
+	
+	mov bl, 104
+	mul bl
+
+	mov bx, 164				;x base
+
+	add bx, ax
+	add bx, 52
+	
+	push bx
+
+	
+	mov ax, [buffer + 1]	;linha
+	sub ax, 48				;converte para num
+	dec ax
+	xor ah, ah
+	
+	mov bl, 104
+	mul bl
+
+	mov bx, 458			;y base
+
+	sub bx, ax
+	sub bx, 52
+	
+	push bx
+
+	mov bx, 40
+	push bx
+	call circle
+
+	pop bx
+	pop ax
+	ret
 
 ;[(x1, y1), (x2, y2)] == [(bx, cx), (dx, si)]
 desenha_retangulo:
