@@ -17,20 +17,6 @@ segment code
 inicializa_jogo:
 	campos_escrita:
 		mov	byte[cor], branco
-
-		; PARA SABER QUAL A POSIÇÃO DO TEXTO DOS CAMPOS
-		; mov    	dh, 27			;linha 0-29
-		; mov     dl, 6			;coluna 0-79
-		; call	cursor
-    	; mov     al,[mens]
-		; call	caracter
-
-		; mov    	dh, 24			;linha 0-29
-		; mov     dl, 6			;coluna 0-79
-		; call	cursor
-    	; mov     al,[mens]
-		; call	caracter
-
 		;comandos
 		mov	bx, 40			
 		mov	cx, 24			
@@ -45,7 +31,6 @@ inicializa_jogo:
 		mov	si, 104
 		call desenha_retangulo		
 		
-
 	jogo_da_velha:
 		call escreve_horizontais
 		call escreve_verticais
@@ -55,11 +40,10 @@ inicializa_jogo:
 		mov	bx, 0
 		mov dh, 2			
 		call escreve_colunas
-
 jogo:	
 		mov	bx, 0
 		mov dh, 24			
-		mov dl, 6			
+		mov dl, 6	
 
 	continua:
 		mov ah, 07H ;Ler caracter da STDIN
@@ -78,6 +62,11 @@ jogo:
 		inc	bx
 		inc dl			;deixa o cursor na proxima coluna
 		jmp continua
+
+	reset:
+		cmp bx, 1
+		je ..start
+		jmp comandoInvalido
 	
 	enterL:
 		cmp bx, 0
@@ -88,6 +77,8 @@ jogo:
 		je	C
 		cmp byte [buffer], 's'
 		je sai1
+		cmp byte [buffer], 'c'
+		je reset
 		jmp comandoInvalido
 
 	backspace:
@@ -100,8 +91,6 @@ jogo:
 		dec	bx
 		mov	[buffer + bx], al
 		jmp continua
-
-	
 sai:
 	mov ah,0 ; set video mode
 	mov al,[modo_anterior] ; recupera o modo anterior
@@ -110,26 +99,69 @@ sai:
 	int 21h
 	
 sai1:
-	cmp byte [buffer + 1], 0x00
+	cmp bx, 1
 	je	sai
 	jmp comandoInvalido
+X:	
+	cmp byte [lastPLayer], 'X'
+	je jogadaRepetidaX
+	cmp byte [buffer + 1], '1'
+	je  X2
+	cmp byte [buffer + 1], '2'
+	je  X2
+	cmp byte [buffer + 1], '3'
+	je  X2
+	jmp jogadaInvalida
+C:	
+	cmp byte [lastPLayer], 'O'
+	je jogadaRepetidaC
+	cmp byte [buffer + 1], '1'
+	je  C2
+	cmp byte [buffer + 1], '2'
+	je  C2
+	cmp byte [buffer + 1], '3'
+	je  C2
+	jmp jogadaInvalida
 
-X:
-	cmp byte [buffer + 1], '1'
-	je  X2
-	cmp byte [buffer + 1], '2'
-	je  X2
-	cmp byte [buffer + 1], '3'
-	je  X2
-	jmp jogadaInvalida
-C:
-	cmp byte [buffer + 1], '1'
-	je  C2
-	cmp byte [buffer + 1], '2'
-	je  C2
-	cmp byte [buffer + 1], '3'
-	je  C2
-	jmp jogadaInvalida
+jogadaRepetidaX:
+	push bx
+	push dx
+	call limpaConsole
+	mov cx, 8			;n�mero de caracteres
+	mov bx, 0
+	mov dh, 27			;linha 0-29
+	mov dl, 6			;coluna 0-79
+	msgX:
+		call cursor
+		mov al,[bx+erroX]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop msgX
+	pop	dx
+	pop	bx
+	call limpaBuffer
+	jmp jogo
+		
+jogadaRepetidaC:
+	push bx
+	push dx
+	call limpaConsole
+	mov cx, 8			;n�mero de caracteres
+	mov bx, 0
+	mov dh, 27			;linha 0-29
+	mov dl, 6			;coluna 0-79
+	msgC:
+		call cursor
+		mov al,[bx+erroO]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop msgC
+	pop	dx
+	pop	bx
+	call limpaBuffer
+	jmp jogo
 
 X2:
 	cmp byte [buffer + 2], '1'
@@ -160,33 +192,93 @@ C3:
 	jmp jogadaInvalida
 
 jogaX:
+	push ax
+	push bx
+	push cx
+	push dx
+
+	;calculando a posicao no tabuleiro
+	mov  ax, [buffer + 1]
+	sub ax, 48
+	dec ax
+	xor ah, ah
+	mov bx, 3
+	mul bx
+	mov bx, [buffer + 2]
+	sub bx, 48
+	xor bh, bh
+	add ax, bx
+	mov bx, ax
+	dec bx
+
+	; pop dx
+	; pop cx
+	; pop bx
+	; pop ax
+
+
+	cmp byte [tabuleiro + bx], 'X'
+	je jogadaInvalida
+	cmp byte [tabuleiro + bx], 'O'
+	je jogadaInvalida
+
+	mov byte [lastPLayer], 'X'
+	mov byte [tabuleiro + bx], 'X' 
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+
+	call desenha_x
 	call limpaBuffer
 	call limpaConsole
+	call checaVitoriaX
 	jmp jogo
 jogaO:
+	push ax
+	push bx
+	push cx
+	push dx
+
+	;calculando a posicao no tabuleiro
+	mov ax, [buffer + 1]
+	sub ax, 48
+	dec ax
+	xor ah, ah
+	mov bx, 3
+	mul bx
+	mov bx, [buffer + 2]
+	sub bx, 48
+	xor bh, bh
+	add ax, bx
+	mov bx, ax
+	dec bx
+
+	
+	; pop dx
+	; pop cx
+	; pop bx
+	; pop ax
+
+	cmp byte [tabuleiro + bx], 'X'
+	je jogadaInvalida
+	cmp byte [tabuleiro + bx], 'O'
+	je jogadaInvalida
+
+
+	mov byte [lastPLayer], 'O'
+	mov byte [tabuleiro + bx], 'O' 
+	
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+
 	call desenha_o
 	call limpaBuffer
 	call limpaConsole
-	jmp jogo
-
-comandoInvalido:
-	push bx
-	push dx
-	call limpaConsole
-	mov cx, 16			;n�mero de caracteres
-	mov bx, 0
-	mov dh, 27			;linha 0-29
-	mov dl, 6			;coluna 0-79
-	msg1:
-		call cursor
-		mov al,[bx+erro1]
-		call caracter
-		inc bx			;proximo caracter
-		inc dl			;avanca a coluna
-		loop msg1
-	pop	dx
-	pop	bx
-	call limpaBuffer
+	call checaVitoriaO
 	jmp jogo
 
 jogadaInvalida:
@@ -208,6 +300,26 @@ jogadaInvalida:
 	pop	bx
 	call limpaBuffer
 	jmp jogo
+comandoInvalido:
+	push bx
+	push dx
+	call limpaConsole
+	mov cx, 16			;n�mero de caracteres
+	mov bx, 0
+	mov dh, 27			;linha 0-29
+	mov dl, 6			;coluna 0-79
+	msg1:
+		call cursor
+		mov al,[bx+erro1]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop msg1
+	pop	dx
+	pop	bx
+	call limpaBuffer
+	jmp jogo
+
 
 limpaBuffer:
 	apaga:
@@ -246,6 +358,256 @@ limpaConsole:
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
+
+vitoriaO:
+	push bx
+	push dx
+	call limpaConsole
+	mov cx, 8			;n�mero de caracteres
+	mov bx, 0
+	mov dh, 27			;linha 0-29
+	mov dl, 6			;coluna 0-79
+	vitoriaO2:
+		call cursor
+		mov al,[bx+vencedorO]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop vitoriaX2
+	pop	dx
+	pop	bx
+	call limpaBuffer
+	jmp continua
+vitoriaX:
+	push bx
+	push dx
+	call limpaConsole
+	mov cx, 8			;n�mero de caracteres
+	mov bx, 0
+	mov dh, 27			;linha 0-29
+	mov dl, 6			;coluna 0-79
+	vitoriaX2:
+		call cursor
+		mov al,[bx+vencedorX]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop vitoriaX2
+	pop	dx
+	pop	bx
+	call limpaBuffer
+	jmp continua
+
+checaVitoriaX:
+	push ax
+	push bx
+	push cx
+	mov al, 'X'
+	linha1:
+		cmp byte [tabuleiro], al
+		jne linha2
+		cmp byte [tabuleiro + 1], al
+		jne linha2
+		cmp byte [tabuleiro + 2], al
+		jne linha2
+		call vitoriaX
+	linha2:
+		cmp byte [tabuleiro + 3], al
+		jne linha3
+		cmp byte [tabuleiro + 4], al
+		jne linha3
+		cmp byte [tabuleiro + 5], al
+		jne linha3
+		call vitoriaX
+	linha3:
+		cmp byte [tabuleiro + 6], al
+		jne coluna1
+		cmp byte [tabuleiro + 7], al
+		jne coluna1
+		cmp byte [tabuleiro + 8], al
+		jne coluna1
+		call vitoriaX
+	coluna1:
+		cmp byte [tabuleiro], al
+		jne coluna2
+		cmp byte [tabuleiro + 3], al
+		jne coluna2
+		cmp byte [tabuleiro + 6], al
+		jne coluna2
+		call vitoriaX
+	coluna2:
+		cmp byte [tabuleiro + 1], al
+		jne coluna3
+		cmp byte [tabuleiro + 4], al
+		jne coluna3
+		cmp byte [tabuleiro + 7], al
+		jne coluna3
+		call vitoriaX
+	coluna3:
+		cmp byte [tabuleiro + 2], al
+		jne diagonal1
+		cmp byte [tabuleiro + 5], al
+		jne diagonal1
+		cmp byte [tabuleiro + 8], al
+		jne diagonal1
+		call vitoriaX
+	diagonal1:
+		cmp byte [tabuleiro], al
+		jne diagonal2
+		cmp byte [tabuleiro + 4], al
+		jne diagonal2
+		cmp byte [tabuleiro + 8], al
+		jne diagonal2
+		call vitoriaX
+	diagonal2:
+		cmp byte [tabuleiro + 2], al
+		jne fim
+		cmp byte [tabuleiro + 4], al
+		jne fim
+		cmp byte [tabuleiro + 6], al
+		jne fim
+		call vitoriaX
+	fim:
+		pop cx
+		pop bx
+		pop ax
+		ret
+
+checaVitoriaO:
+	push ax
+	push bx
+	push cx
+	mov al, 'O'
+	linha1c:
+		cmp byte [tabuleiro], al
+		jne linha2c
+		cmp byte [tabuleiro + 1], al
+		jne linha2c
+		cmp byte [tabuleiro + 2], al
+		jne linha2c
+		call vitoriaO
+	linha2c:
+		cmp byte [tabuleiro + 3], al
+		jne linha3c
+		cmp byte [tabuleiro + 4], al
+		jne linha3c
+		cmp byte [tabuleiro + 5], al
+		jne linha3c
+		call vitoriaO
+	linha3c:
+		cmp byte [tabuleiro + 6], al
+		jne coluna1c
+		cmp byte [tabuleiro + 7], al
+		jne coluna1c
+		cmp byte [tabuleiro + 8], al
+		jne coluna1c
+		call vitoriaO
+	coluna1c:
+		cmp byte [tabuleiro], al
+		jne coluna2c
+		cmp byte [tabuleiro + 3], al
+		jne coluna2c
+		cmp byte [tabuleiro + 6], al
+		jne coluna2c
+		call vitoriaO
+	coluna2c:
+		cmp byte [tabuleiro + 1], al
+		jne coluna3c
+		cmp byte [tabuleiro + 4], al
+		jne coluna3c
+		cmp byte [tabuleiro + 7], al
+		jne coluna3c
+		call vitoriaO
+	coluna3c:
+		cmp byte [tabuleiro + 2], al
+		jne diagonal1c
+		cmp byte [tabuleiro + 5], al
+		jne diagonal1c
+		cmp byte [tabuleiro + 8], al
+		jne diagonal1c
+		call vitoriaO
+	diagonal1c:
+		cmp byte [tabuleiro], al
+		jne diagonal2c
+		cmp byte [tabuleiro + 4], al
+		jne diagonal2c
+		cmp byte [tabuleiro + 8], al
+		jne diagonal2c
+		call vitoriaO
+	diagonal2c:
+		cmp byte [tabuleiro + 2], al
+		jne fimc
+		cmp byte [tabuleiro + 4], al
+		jne fimc
+		cmp byte [tabuleiro + 6], al
+		jne fimc
+		call vitoriaO
+	fimc:
+		pop cx
+		pop bx
+		pop ax
+		ret
+
+;ax = linha, bx = coluna
+desenha_x:
+	push ax
+	push bx
+	push cx
+
+	mov ax, [buffer + 2]	;coluna
+	sub ax, 48				;converte para num
+	dec ax
+	xor ah, ah
+	
+	mov bl, 104
+	mul bl
+
+	mov bx, 164				;x base
+
+	add bx, ax
+	add bx, 52				;centro do X
+	
+	mov ax, [buffer + 1]	;linha
+	sub ax, 48				;converte para num
+	dec ax
+	xor ah, ah
+	
+	mov cl, 104
+	mul cl
+
+	mov cx, 458			;y base
+
+	sub cx, ax
+	sub cx, 52			;centro do Y
+	
+	;(bx, cx) = centro do X
+	
+	add bx, 40
+	add cx, 40
+	push bx
+	push cx
+	sub bx, 80
+	sub cx, 80
+	push bx
+	push cx
+
+	call line
+
+	add cx, 80
+	push bx
+	push cx
+	add bx, 80
+	sub cx, 80
+	push bx
+	push cx
+
+	call line
+
+
+	pop cx
+	pop bx
+	pop ax
+	ret
 
 ;ax = linha, bx = coluna
 desenha_o:
@@ -953,6 +1315,12 @@ deltay			dw		0
 mens    		db  	'111213212223313233'
 erro1			db		'Comando Invalido'
 erro2			db		'Jogada Invalida'
+erroO			db		'Vez do X'
+erroX			db		'Vez do O'
+lastPLayer		db		0
+tabuleiro		db		'        X'
+vencedorX		db		'X Venceu'
+vencedorO		db		'O Venceu'
 buffer      	resb	80  		
 segment stack stack
     		resb 		512
