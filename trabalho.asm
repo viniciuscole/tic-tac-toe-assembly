@@ -62,12 +62,8 @@ jogo:
 		inc	bx
 		inc dl			;deixa o cursor na proxima coluna
 		jmp continua
-
-	reset:
-		cmp bx, 1
-		je ..start
-		jmp comandoInvalido
-	
+	reset0:
+		jmp reset
 	enterL:
 		cmp bx, 0
 		je	continua
@@ -78,7 +74,7 @@ jogo:
 		cmp byte [buffer], 's'
 		je sai1
 		cmp byte [buffer], 'c'
-		je reset
+		je reset0
 		jmp comandoInvalido
 
 	backspace:
@@ -211,12 +207,6 @@ jogaX:
 	mov bx, ax
 	dec bx
 
-	; pop dx
-	; pop cx
-	; pop bx
-	; pop ax
-
-
 	cmp byte [tabuleiro + bx], 'X'
 	je jogadaInvalida
 	cmp byte [tabuleiro + bx], 'O'
@@ -234,6 +224,7 @@ jogaX:
 	call limpaBuffer
 	call limpaConsole
 	call checaVitoriaX
+	call checaEmpate
 	jmp jogo
 jogaO:
 	push ax
@@ -255,12 +246,6 @@ jogaO:
 	mov bx, ax
 	dec bx
 
-	
-	; pop dx
-	; pop cx
-	; pop bx
-	; pop ax
-
 	cmp byte [tabuleiro + bx], 'X'
 	je jogadaInvalida
 	cmp byte [tabuleiro + bx], 'O'
@@ -279,12 +264,15 @@ jogaO:
 	call limpaBuffer
 	call limpaConsole
 	call checaVitoriaO
+	call checaEmpate
 	jmp jogo
 
 jogadaInvalida:
 	push bx
+	push cx
 	push dx
 	call limpaConsole
+	call limpaBuffer
 	mov cx, 15			;n�mero de caracteres
 	mov bx, 0
 	mov dh, 27			;linha 0-29
@@ -297,13 +285,14 @@ jogadaInvalida:
 		inc dl			;avanca a coluna
 		loop msg2
 	pop	dx
+	pop cx
 	pop	bx
-	call limpaBuffer
 	jmp jogo
 comandoInvalido:
 	push bx
 	push dx
 	call limpaConsole
+	call limpaBuffer
 	mov cx, 16			;n�mero de caracteres
 	mov bx, 0
 	mov dh, 27			;linha 0-29
@@ -317,30 +306,40 @@ comandoInvalido:
 		loop msg1
 	pop	dx
 	pop	bx
-	call limpaBuffer
 	jmp jogo
 
 
 limpaBuffer:
+	push bx
+	push cx
+	push dx
+	mov	dh, 24
+	mov	dl, 74
+	mov cx, 68
 	apaga:
-		cmp bx, 0
+		cmp cx, 0
 		je 	retorna
 		dec dl
 		call cursor
 		mov	al, 0x00
 		call caracter
+		mov bx, cx
 		mov [buffer + bx], al
-		dec bx
+		dec cx
 		jmp apaga
 	retorna:
+		pop	dx
+		pop cx
+		pop bx
 		ret
 
 limpaConsole:
 	push bx
+	push cx
 	push dx
 	mov	dh, 27
-	mov	dl, 46
-	mov cx, 40
+	mov	dl, 74
+	mov cx, 68
 	apaga2:
 		cmp cx, 0
 		je 	retorna2
@@ -352,17 +351,238 @@ limpaConsole:
 		jmp apaga2
 	retorna2:
 		pop	dx
+		pop cx
 		pop	bx
 		ret
 
+fimdejogo:
+	mov dh, 24
+	mov dl, 6
+	mov cx, 64
+	mov bx, 0
+	escrevemsgfim:
+		call cursor
+		mov al,[bx+msgfim]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop escrevemsgfim
+	esperainput:
+		mov ah, 07H ;Ler caracter da STDIN
+		int 21H
+		cmp al, 'c'
+		je resetfim
+		cmp al, 's'
+		je saifim	
+		jmp esperainput
+
+	saifim:
+		jmp sai
+	resetfim:
+		jmp reset
+
+reset:
+	call limpaBuffer
+	call limpaTabuleiro
+	mov byte [lastPLayer], 0
+	jmp ..start
+	
+	
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
+
+;recebe os 3 pontos como parametro
+desenha_linha:
+	mov	byte[cor], vermelho
+	push bp
+	mov	 bp,sp
+	pushf                        ;coloca os flags na pilha
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+	push di
+	
+	;mov		cx,[bp+4]    ; resgata p3
+	
+	mov	ax,[bp+8]   ; resgata p1
+	dec ax
+	mov bl, 3
+	div	bl
+	xor ah, ah
+	mov cx, ax
+	mov bx, ax
+	inc bx, 		;linha de p1
+
+	mov ax, [bp+8]
+	subtrai:			; cx vezes = linha - 1 vezes
+		cmp cx, 0
+		je paraSubtracao
+		sub ax, 3
+		loop subtrai
+	;ax = coluna de p1
+	
+	paraSubtracao:
+	dec ax
+	dec bx
+	mov cl, 104
+	mul cl
+	mov cx, 164				;x base
+	add cx, ax
+	add cx, 52				;centro do X
+
+	mov dx, cx  			;salvando para fazer a prox linha
+	push cx
+	
+	mov ax, bx
+	
+	mov cl, 104
+	mul cl
+	mov cx, 458			;y base
+	sub cx, ax
+	sub cx, 52			;centro do Y
+
+	push cx				;ponto 1 completo
+
+	;;ponto2
+
+	mov ax,[bp+6]    ; resgata p2
+	dec ax
+	mov bl, 3
+	div	bl
+	xor ah, ah
+	mov cx, ax
+	mov bx, ax
+	inc bx, 		;linha de p2
+
+	mov ax, [bp+6]
+	subtrai2:
+		cmp cx, 0
+		je paraSubtracao2	
+		sub ax, 3
+		loop subtrai2
+	;ax = coluna de p2
+	paraSubtracao2:
+	dec ax
+	dec bx
+	mov cl, 104
+	mul cl
+	mov cx, 164				
+	add cx, ax
+	add cx, 52		
+	
+	mov dx, cx  ;salvando para fazer a prox linha
+	push cx
+	
+	mov ax, bx
+	
+	mov cl, 104
+	mul cl
+	mov cx, 458			
+	sub cx, ax
+	sub cx, 52			
+
+	push cx				;ponto 2 completo
+
+	call line
+
+	push dx
+	push cx        ;ponto 2
+
+	;;ponto3
+
+	mov ax,[bp+4]    ; resgata p2
+	dec ax
+	mov bl, 3
+	div	bl
+	xor ah, ah
+	mov cx, ax
+	mov bx, ax
+	inc bx, 		;linha de p2
+
+	mov ax, [bp+4]
+	subtrai3:
+		cmp cx, 0
+		je paraSubtracao3	
+		sub ax, 3
+		loop subtrai3
+	;ax = coluna de p2
+	paraSubtracao3:
+	dec ax
+	dec bx
+	mov cl, 104
+	mul cl
+	mov cx, 164				
+	add cx, ax
+	add cx, 52		
+	
+	push cx
+	
+	mov ax, bx
+	
+	mov cl, 104
+	mul cl
+	mov cx, 458			
+	sub cx, ax
+	sub cx, 52			
+
+	push cx				;ponto 2 completo
+
+	call line
+
+fim_desenha:
+	mov	byte[cor], branco
+	pop		di
+	pop		si
+	pop		dx
+	pop		cx
+	pop		bx
+	pop		ax
+	popf
+	pop		bp
+	ret		6
+
+
+
+limpaTabuleiro:
+	mov byte [tabuleiro], ' '
+	mov byte [tabuleiro + 1], ' '
+	mov byte [tabuleiro + 2], ' '
+	mov byte [tabuleiro + 3], ' '
+	mov byte [tabuleiro + 4], ' '
+	mov byte [tabuleiro + 5], ' '
+	mov byte [tabuleiro + 6], ' '
+	mov byte [tabuleiro + 7], ' '
+	mov byte [tabuleiro + 8], ' '
+	ret
+
+empatou:
+	push bx
+	push dx
+	call limpaConsole
+	call limpaBuffer
+	mov cx, 6			;n�mero de caracteres
+	mov bx, 0
+	mov dh, 27			;linha 0-29
+	mov dl, 6			;coluna 0-79
+	empatou2:
+		call cursor
+		mov al,[bx+empate]
+		call caracter
+		inc bx			;proximo caracter
+		inc dl			;avanca a coluna
+		loop empatou2
+	pop	dx
+	pop	bx
+	jmp fimdejogo
 
 vitoriaO:
 	push bx
 	push dx
 	call limpaConsole
+	call limpaBuffer
 	mov cx, 8			;n�mero de caracteres
 	mov bx, 0
 	mov dh, 27			;linha 0-29
@@ -373,15 +593,15 @@ vitoriaO:
 		call caracter
 		inc bx			;proximo caracter
 		inc dl			;avanca a coluna
-		loop vitoriaX2
+		loop vitoriaO2
 	pop	dx
 	pop	bx
-	call limpaBuffer
-	jmp continua
+	jmp fimdejogo
 vitoriaX:
 	push bx
 	push dx
 	call limpaConsole
+	call limpaBuffer
 	mov cx, 8			;n�mero de caracteres
 	mov bx, 0
 	mov dh, 27			;linha 0-29
@@ -395,8 +615,30 @@ vitoriaX:
 		loop vitoriaX2
 	pop	dx
 	pop	bx
-	call limpaBuffer
-	jmp continua
+	jmp fimdejogo
+
+checaEmpate:
+	cmp byte [tabuleiro], ' '
+	je existeJogada
+	cmp byte [tabuleiro + 1], ' '
+	je existeJogada
+	cmp byte [tabuleiro + 2], ' '
+	je existeJogada
+	cmp byte [tabuleiro + 3], ' '
+	je existeJogada
+	cmp byte [tabuleiro + 4], ' '
+	je existeJogada
+	cmp byte [tabuleiro + 5], ' '
+	je existeJogada
+	cmp byte [tabuleiro + 6], ' '
+	je existeJogada
+	cmp byte [tabuleiro + 7], ' '
+	je existeJogada
+	cmp byte [tabuleiro + 8], ' '
+	je existeJogada
+	jmp empatou
+	existeJogada:
+		ret
 
 checaVitoriaX:
 	push ax
@@ -410,6 +652,13 @@ checaVitoriaX:
 		jne linha2
 		cmp byte [tabuleiro + 2], al
 		jne linha2
+		mov bx, 1
+		push bx
+		mov bx, 2
+		push bx
+		mov bx, 3
+		push bx
+		call desenha_linha
 		call vitoriaX
 	linha2:
 		cmp byte [tabuleiro + 3], al
@@ -418,6 +667,13 @@ checaVitoriaX:
 		jne linha3
 		cmp byte [tabuleiro + 5], al
 		jne linha3
+		mov bx, 4
+		push bx
+		mov bx, 5
+		push bx
+		mov bx, 6
+		push bx
+		call desenha_linha
 		call vitoriaX
 	linha3:
 		cmp byte [tabuleiro + 6], al
@@ -426,6 +682,13 @@ checaVitoriaX:
 		jne coluna1
 		cmp byte [tabuleiro + 8], al
 		jne coluna1
+		mov bx, 7
+		push bx
+		mov bx, 8
+		push bx
+		mov bx, 9
+		push bx
+		call desenha_linha
 		call vitoriaX
 	coluna1:
 		cmp byte [tabuleiro], al
@@ -434,6 +697,13 @@ checaVitoriaX:
 		jne coluna2
 		cmp byte [tabuleiro + 6], al
 		jne coluna2
+		mov bx, 1
+		push bx
+		mov bx, 4
+		push bx
+		mov bx, 7
+		push bx
+		call desenha_linha
 		call vitoriaX
 	coluna2:
 		cmp byte [tabuleiro + 1], al
@@ -442,6 +712,13 @@ checaVitoriaX:
 		jne coluna3
 		cmp byte [tabuleiro + 7], al
 		jne coluna3
+		mov bx, 2
+		push bx
+		mov bx, 5
+		push bx
+		mov bx, 8
+		push bx
+		call desenha_linha
 		call vitoriaX
 	coluna3:
 		cmp byte [tabuleiro + 2], al
@@ -450,6 +727,13 @@ checaVitoriaX:
 		jne diagonal1
 		cmp byte [tabuleiro + 8], al
 		jne diagonal1
+		mov bx, 3
+		push bx
+		mov bx, 6
+		push bx
+		mov bx, 9
+		push bx
+		call desenha_linha
 		call vitoriaX
 	diagonal1:
 		cmp byte [tabuleiro], al
@@ -458,6 +742,13 @@ checaVitoriaX:
 		jne diagonal2
 		cmp byte [tabuleiro + 8], al
 		jne diagonal2
+		mov bx, 1
+		push bx
+		mov bx, 5
+		push bx
+		mov bx, 9
+		push bx
+		call desenha_linha
 		call vitoriaX
 	diagonal2:
 		cmp byte [tabuleiro + 2], al
@@ -466,6 +757,13 @@ checaVitoriaX:
 		jne fim
 		cmp byte [tabuleiro + 6], al
 		jne fim
+		mov bx, 3
+		push bx
+		mov bx, 5
+		push bx
+		mov bx, 7
+		push bx
+		call desenha_linha
 		call vitoriaX
 	fim:
 		pop cx
@@ -485,6 +783,13 @@ checaVitoriaO:
 		jne linha2c
 		cmp byte [tabuleiro + 2], al
 		jne linha2c
+		mov bx, 1
+		push bx
+		mov bx, 2
+		push bx
+		mov bx, 3
+		push bx
+		call desenha_linha
 		call vitoriaO
 	linha2c:
 		cmp byte [tabuleiro + 3], al
@@ -493,6 +798,13 @@ checaVitoriaO:
 		jne linha3c
 		cmp byte [tabuleiro + 5], al
 		jne linha3c
+		mov bx, 4
+		push bx
+		mov bx, 5
+		push bx
+		mov bx, 6
+		push bx
+		call desenha_linha
 		call vitoriaO
 	linha3c:
 		cmp byte [tabuleiro + 6], al
@@ -501,6 +813,13 @@ checaVitoriaO:
 		jne coluna1c
 		cmp byte [tabuleiro + 8], al
 		jne coluna1c
+		mov bx, 7
+		push bx
+		mov bx, 8
+		push bx
+		mov bx, 9
+		push bx
+		call desenha_linha
 		call vitoriaO
 	coluna1c:
 		cmp byte [tabuleiro], al
@@ -509,6 +828,13 @@ checaVitoriaO:
 		jne coluna2c
 		cmp byte [tabuleiro + 6], al
 		jne coluna2c
+		mov bx, 1
+		push bx
+		mov bx, 4
+		push bx
+		mov bx, 7
+		push bx
+		call desenha_linha
 		call vitoriaO
 	coluna2c:
 		cmp byte [tabuleiro + 1], al
@@ -517,6 +843,13 @@ checaVitoriaO:
 		jne coluna3c
 		cmp byte [tabuleiro + 7], al
 		jne coluna3c
+		mov bx, 2
+		push bx
+		mov bx, 5
+		push bx
+		mov bx, 8
+		push bx
+		call desenha_linha
 		call vitoriaO
 	coluna3c:
 		cmp byte [tabuleiro + 2], al
@@ -525,6 +858,13 @@ checaVitoriaO:
 		jne diagonal1c
 		cmp byte [tabuleiro + 8], al
 		jne diagonal1c
+		mov bx, 3
+		push bx
+		mov bx, 6
+		push bx
+		mov bx, 9
+		push bx
+		call desenha_linha
 		call vitoriaO
 	diagonal1c:
 		cmp byte [tabuleiro], al
@@ -533,6 +873,13 @@ checaVitoriaO:
 		jne diagonal2c
 		cmp byte [tabuleiro + 8], al
 		jne diagonal2c
+		mov bx, 1
+		push bx
+		mov bx, 5
+		push bx
+		mov bx, 9
+		push bx
+		call desenha_linha
 		call vitoriaO
 	diagonal2c:
 		cmp byte [tabuleiro + 2], al
@@ -541,6 +888,13 @@ checaVitoriaO:
 		jne fimc
 		cmp byte [tabuleiro + 6], al
 		jne fimc
+		mov bx, 3
+		push bx
+		mov bx, 5
+		push bx
+		mov bx, 7
+		push bx
+		call desenha_linha
 		call vitoriaO
 	fimc:
 		pop cx
@@ -1318,9 +1672,11 @@ erro2			db		'Jogada Invalida'
 erroO			db		'Vez do X'
 erroX			db		'Vez do O'
 lastPLayer		db		0
-tabuleiro		db		'        X'
+tabuleiro		db		'         '
 vencedorX		db		'X Venceu'
 vencedorO		db		'O Venceu'
+empate   		db  	'Empate'
+msgfim			db		'Fim de Jogo. Pressione "c" para jogar novamente ou "s" para sair'
 buffer      	resb	80  		
 segment stack stack
     		resb 		512
