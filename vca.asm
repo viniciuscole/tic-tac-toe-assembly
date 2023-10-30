@@ -1,3 +1,4 @@
+; Vinicius Cole de Amorim
 segment code
 extern cursor
 extern caracter
