@@ -117,7 +117,7 @@ X:
 	je  X2
 	jmp jogadaInvalida
 C:	
-	cmp byte [lastPLayer], 'O'
+	cmp byte [lastPLayer], 'C'
 	je jogadaRepetidaC
 	cmp byte [buffer + 1], '1'
 	je  C2
@@ -229,6 +229,7 @@ jogaX:
 	pop ax
 
 	call desenha_x
+	call desenhaUltimaJogada
 	call limpaBuffer
 	call limpaConsole
 	call checaVitoriaX
@@ -260,7 +261,7 @@ jogaO:
 	je jogadaInvalida
 
 
-	mov byte [lastPLayer], 'O'
+	mov byte [lastPLayer], 'C'
 	mov byte [tabuleiro + bx], 'O' 
 	
 	pop dx
@@ -269,6 +270,7 @@ jogaO:
 	pop ax
 
 	call desenha_o
+	call desenhaUltimaJogada
 	call limpaBuffer
 	call limpaConsole
 	call checaVitoriaO
@@ -393,12 +395,43 @@ reset:
 	call limpaBuffer
 	call limpaTabuleiro
 	mov byte [lastPLayer], 0
+	mov byte [lastPlayX], 0x00
+	mov byte [lastPlayY], 0x00
 	jmp ..start
 	
 	
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
 ; FUNÇÕES ==========================================================================================================
+
+desenhaUltimaJogada:
+	push ax
+	push bx
+	push cx
+	push dx
+	mov byte al, [buffer + 1]
+	mov byte [lastPlayX], al
+	mov byte al, [buffer + 2]
+	mov byte [lastPlayY], al
+	mov dh, 22
+	mov dl, 6
+	call cursor
+	mov al,[lastPLayer]
+	call caracter
+	inc dl
+	call cursor
+	mov al, [lastPlayX]
+	call caracter
+	inc dl
+	call cursor
+	mov al, [lastPlayY]
+	call caracter
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+	
 
 ;recebe os 3 pontos como parametro
 desenha_linha:
@@ -1141,6 +1174,8 @@ erro2			db		'Jogada Invalida'
 erroO			db		'Vez do X'
 erroX			db		'Vez do O'
 lastPLayer		db		0
+lastPlayX		db		0x00
+lastPlayY		db		0x00
 tabuleiro		db		'         '
 vencedorX		db		'X Venceu'
 vencedorO		db		'O Venceu'
